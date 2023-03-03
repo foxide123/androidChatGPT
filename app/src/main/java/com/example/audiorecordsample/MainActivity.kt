@@ -44,7 +44,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     var playAudioTrack: Button? = null
     var sendAudioRecord: Button? = null
     private lateinit var authenticateButton: Button;
-    var textView: EditText? = null
+    var textView: TextView? = null
 
     var isRecordingAudio = false
 
@@ -125,7 +125,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     fun setListeners() {
         viewModel.jsonBody.observe(this) { newName ->
             // Update the UI, in this case, a TextView.
-            textView?.setText(newName)
+            textView?.text = newName
             if(speak) {
                 speakOut()
                 speak=false
@@ -143,7 +143,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         sendAudioRecord!!.setOnClickListener{
             try{
                 val request = textView?.text.toString()
-                textView?.setText(null)
+                textView?.text = null
                 lifecycleScope.launch(Dispatchers.IO) {
                     speak = true
                     viewModel.sendChatRequest(request)

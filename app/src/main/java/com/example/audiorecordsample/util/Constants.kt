@@ -9,7 +9,7 @@ class Constants {
         const val CHAT_BASE_URL = "https://api.openai.com/"
         const val OAUTH_CLIENT_ID = "453045987930-ci205apban1bmkuvubuk9e9tt32ctr6r.apps.googleusercontent.com"
         const val OAUTH_CLIENT_SECRET = "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"
-        const val CHAT_API_KEY = "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"
+        const val CHAT_API_KEY = "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"
 
         //AUDIO
         const val SAMPLE_RATE = 44100
