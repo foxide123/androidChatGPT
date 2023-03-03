@@ -9,6 +9,7 @@ import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
 import android.service.controls.ControlsProviderService
+import android.speech.tts.TextToSpeech
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
@@ -16,6 +17,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import com.example.audiorecordsample.models.*
 import com.example.audiorecordsample.models.speechToText.*
+import com.example.audiorecordsample.repository.Repository
 import com.example.audiorecordsample.util.Constants
 import com.example.audiorecordsample.util.Constants.Companion.CHAT_API_KEY
 import com.example.audiorecordsample.util.Constants.Companion.OAUTH_CLIENT_ID
@@ -31,6 +33,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.awaitResponse
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
@@ -38,7 +41,7 @@ import java.io.IOException
 import java.util.*
 
 
-class MainViewModel(application: Application) :AndroidViewModel(application) {
+class MainViewModel(application: Application, val repository: Repository) :AndroidViewModel(application) {
 
     var isRecordingAudio = false
     protected var audioRecord: AudioRecord? = null
@@ -90,12 +93,6 @@ class MainViewModel(application: Application) :AndroidViewModel(application) {
 
             val authRequest = builder.build()
             return authRequest
-
-
-            /*  val intentBuilder = mAuthService?.createCustomTabsIntentBuilder(authRequest.toUri())
-            intentBuilder?.setToolbarColor(ContextCompat.getColor(this, R.color.colorAccent))
-            customIntent = intentBuilder?.build()*/
-
         }
     }
 
@@ -146,136 +143,28 @@ class MainViewModel(application: Application) :AndroidViewModel(application) {
 
 
      suspend fun doInBackground(token:String){
-         Log.i("TAG", token);
          val requestConfig = SpeechToTextRequest(ConfigAPI("en-US","LINEAR16",44100), AudioAPI(fileInBase64!!))
-         withContext(Dispatchers.IO) {
-             val client = OkHttpClient()
-             val request = Request.Builder()
-                 .method("POST", Gson().toJson(requestConfig).toRequestBody("application/json".toMediaType()))
-                 .url("https://speech.googleapis.com/v1/speech:recognize")
-                 .addHeader("Authorization", "Bearer "+token)
-                 .build()
-             try {
-                 val response = client.newCall(request).execute()
-                 val responseInString = response.body.string()
-                 //jsonBody.postValue(responseInString)
-                 Log.i("LOG_TAG", String.format("User Info Response %s", responseInString))
-                 val speechToTextResponse = mapResponse(responseInString)
-                  jsonBody.postValue(speechToTextResponse.results[0].alternatives[0].transcript)
-                // return@withContext JSONObject(jsonBody.value)
-             } catch (exception: Exception) {
-                 Log.w("LOG_TAG", exception)
-             }
+         val speechToTextResponse = repository.getTextFromAudio(requestConfig, token).execute();
+         if(speechToTextResponse.isSuccessful){
+             jsonBody.postValue(speechToTextResponse.body()?.results?.get(0)?.alternatives?.get(0)?.transcript)
          }
+         else{
+             Exception("problem with http call")
+         }
+
     }
 
     suspend fun sendChatRequest(request: String){
         Log.i("VALUE_OF_EDITVIEW", request)
-
-
         val requestConfig = ChatRequest(listOf(Message(request, "user")), "gpt-3.5-turbo")
-        withContext(Dispatchers.IO) {
-            val client = OkHttpClient()
-            val request = Request.Builder()
-                .method("POST", Gson().toJson(requestConfig).toRequestBody("application/json".toMediaType()))
-                .url("https://api.openai.com/v1/chat/completions")
-                .addHeader("Authorization", "Bearer "+ CHAT_API_KEY)
-                .build()
-            try {
-                val response = client.newCall(request).execute()
-                val responseInString = response.body.string()
-                //jsonBody.postValue(responseInString)
-                Log.i("LOG_TAG", String.format("Chat response %s", responseInString))
-                val speechToTextResponse = mapResponseChatGPT(responseInString)
-                jsonBody.postValue(speechToTextResponse!!.choices[0].message.content)
 
-            } catch (exception: Exception) {
-                Log.w("LOG_TAG", exception)
-            }
+        try{
+            val chatResponse = repository.getCompletion(requestConfig).execute();
+            jsonBody.postValue(chatResponse!!.body()?.choices?.get(0)?.message?.content?.trimStart())
+        }catch(exception:Exception){
+            Log.w("LOG_TAG", exception)
         }
     }
-
-
-
-
-
-    fun mapResponseChatGPT(responseJson: String): ChatResponse? {
-            val gson = Gson()
-            val jsonObject = gson.fromJson(responseJson, JsonObject::class.java)
-            val id = jsonObject.get("id").asString
-            val `object` = jsonObject.get("object").asString
-            val created = jsonObject.get("created").asInt
-            val model = jsonObject.get("model").asString
-            val choicesArray = jsonObject.getAsJsonArray("choices")
-            val choices = choicesArray.map{choice->
-                val index = choice.asJsonObject.get("index").asInt
-                val finish_reason = choice.asJsonObject.get("finish_reason").asString
-                val message = choice.asJsonObject.get("message").asJsonObject
-                val role = message.get("role").asString
-                val content = message.get("content").asString
-
-                Choice(finish_reason, index, Message(content, role))
-            }
-            val usage = jsonObject.getAsJsonObject("usage")
-            val prompt_tokens = usage.get("prompt_tokens").asInt
-            val completion_tokens = usage.get("completion_tokens").asInt
-            val total_tokens = usage.get("total_tokens").asInt
-
-            return ChatResponse(choices, created, id, model, `object`, Usage(completion_tokens, prompt_tokens, total_tokens))
-    }
-
-
-    fun mapResponse(responseJson: String): SpeechToTextResponse {
-        val gson = Gson()
-        val jsonObject = gson.fromJson(responseJson, JsonObject::class.java)
-        val resultsJsonArray = jsonObject.getAsJsonArray("results")
-        val results = resultsJsonArray.map { resultJson ->
-            val alternativesJsonArray = resultJson.asJsonObject.getAsJsonArray("alternatives")
-            val alternatives = alternativesJsonArray.map { alternativeJson ->
-                val transcript = alternativeJson.asJsonObject.get("transcript").asString
-                val confidence = alternativeJson.asJsonObject.get("confidence").asDouble
-                Alternative(confidence, transcript)
-            }
-            val languageCode = resultJson.asJsonObject.get("languageCode").asString
-            val resultEndTime = resultJson.asJsonObject.get("resultEndTime").asString
-            com.example.audiorecordsample.models.speechToText.Result(
-                alternatives,
-                languageCode,
-                resultEndTime
-            )
-        }
-        val totalBilledTime = jsonObject.get("totalBilledTime").asString
-        val requestId = jsonObject.get("requestId").asString
-        return SpeechToTextResponse(results, totalBilledTime, requestId)
-    }
-
-
-/*
-    inner class ProfileTask : AsyncTask<String?, Void, JSONObject>() {
-        override fun doInBackground(vararg tokens: String?): JSONObject? {
-            val client = OkHttpClient()
-            val request = Request.Builder()
-                .url("https://www.googleapis.com/oauth2/v3/userinfo")
-                .addHeader("Authorization", String.format("Bearer %s", tokens[0]))
-                .build()
-            try {
-                val response = client.newCall(request).execute()
-                val jsonBody: String = response.body.string()
-                Log.i("LOG_TAG", String.format("User Info Response %s", jsonBody))
-                return JSONObject(jsonBody)
-            } catch (exception: Exception) {
-                Log.w("LOG_TAG", exception)
-            }
-            return null
-        }
-        override fun onPostExecute(userInfo: JSONObject?) {
-            if (userInfo != null) {
-                Log.d(ControlsProviderService.TAG, userInfo.toString())
-            }
-        }
-    }
-
- */
 
 
     fun createFile(): File {

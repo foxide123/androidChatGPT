@@ -1,48 +1,32 @@
 package com.example.audiorecordsample
 
 import android.Manifest
-import android.app.Application
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.*
-import android.net.Uri
-import android.net.UrlQuerySanitizer
-import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.service.controls.ControlsProviderService
 import android.service.controls.ControlsProviderService.TAG
 import android.speech.tts.TextToSpeech
-import android.text.Editable
-import android.text.TextUtils
-import android.text.TextWatcher
 import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import com.bumptech.glide.Glide
-import com.example.audiorecordsample.api.TestCall
+import com.example.audiorecordsample.repository.Repository
 import com.example.audiorecordsample.util.Constants
 import com.example.audiorecordsample.util.Constants.Companion.AUDIO_FORMAT
 import com.example.audiorecordsample.util.Constants.Companion.CHANNEL_CONFIG_IN
 import com.example.audiorecordsample.util.Constants.Companion.SAMPLE_RATE
-import com.google.android.material.snackbar.Snackbar
-import com.google.api.client.auth.oauth2.AuthorizationCodeFlow
-import com.google.api.client.auth.oauth2.TokenResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import net.openid.appauth.*
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import org.json.JSONObject
 import java.io.*
 import java.util.*
 
@@ -60,7 +44,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     var playAudioTrack: Button? = null
     var sendAudioRecord: Button? = null
     private lateinit var authenticateButton: Button;
-    var textView: TextView? = null
+    var textView: EditText? = null
 
     var isRecordingAudio = false
 
@@ -71,8 +55,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var fileAudio: File
 
 
-    private val viewModel: MainViewModel by viewModels()
+    lateinit var viewModel: MainViewModel
     private var tts: TextToSpeech? = null
+    private var speak: Boolean = false;
 
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -80,6 +65,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val repository = Repository()
+        val viewModelProviderFactory = MainViewModelProvider(this.application, repository)
+        viewModel = ViewModelProvider(this, viewModelProviderFactory).get(MainViewModel::class.java)
 
 
         playAudioTrack = findViewById<Button>(R.id.play_audiotrack);
@@ -123,11 +111,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
-    private fun speakOut() {
-        val text = textView!!.text.toString()
-        tts!!.speak(text, TextToSpeech.QUEUE_FLUSH, null,"")
-    }
-
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         val accessToken = viewModel.onResult(requestCode, resultCode, data)
@@ -142,7 +125,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     fun setListeners() {
         viewModel.jsonBody.observe(this) { newName ->
             // Update the UI, in this case, a TextView.
-            textView?.text = newName
+            textView?.setText(newName)
+            if(speak) {
+                speakOut()
+                speak=false
+            }
         }
 
         recordAudioRecord!!.setOnClickListener {
@@ -155,9 +142,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         sendAudioRecord!!.setOnClickListener{
             try{
+                val request = textView?.text.toString()
+                textView?.setText(null)
                 lifecycleScope.launch(Dispatchers.IO) {
-                    viewModel.sendChatRequest(textView?.text.toString())
+                    speak = true
+                    viewModel.sendChatRequest(request)
                 }
+                speakOut()
             }catch(exception: IOException){
                 Log.d(TAG, "problem sending request")
             }
@@ -184,7 +175,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
  */
     }
 
- @RequiresApi(Build.VERSION_CODES.O)
+    private fun speakOut() {
+        val text = textView!!.text.toString()
+        tts!!.speak(text, TextToSpeech.QUEUE_FLUSH, null,"")
+    }
+
+
+    @RequiresApi(Build.VERSION_CODES.O)
  fun startRecording() {
     if (audioRecord == null) { // safety check
         if (ActivityCompat.checkSelfPermission(

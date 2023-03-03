@@ -10,7 +10,7 @@
         android:id="@+id/textView"
         android:layout_width="350dp"
         android:layout_height="100dp"
-        android:text="TextView"
+        android:text="Write prompt"
         app:layout_constraintBottom_toTopOf="@+id/record_audiorecord"
         app:layout_constraintTop_toTopOf="parent"
         tools:ignore="MissingConstraints"
