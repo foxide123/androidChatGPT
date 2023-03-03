@@ -19,8 +19,6 @@ import com.example.audiorecordsample.models.*
 import com.example.audiorecordsample.models.speechToText.*
 import com.example.audiorecordsample.repository.Repository
 import com.example.audiorecordsample.util.Constants
-import com.example.audiorecordsample.util.Constants.Companion.CHAT_API_KEY
-import com.example.audiorecordsample.util.Constants.Companion.OAUTH_CLIENT_ID
 import com.example.audiorecordsample.util.Constants.Companion.RC_AUTH
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -81,7 +79,7 @@ class MainViewModel(application: Application, val repository: Repository) :Andro
                 Uri.parse("https://www.googleapis.com/oauth2/v4/token") // token endpoint
             )
 
-            val clientId = OAUTH_CLIENT_ID
+            val clientId = BuildConfig.OAUTH_CLIENT_ID
             val redirectUri = Uri.parse("com.example.audiorecordsample:/oauth2callback")
             val builder = AuthorizationRequest.Builder(
                 serviceConfig,

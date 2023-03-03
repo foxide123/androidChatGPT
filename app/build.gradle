@@ -11,6 +11,22 @@ android {
     packagingOptions {
         resources.excludes.add("META-INF/*")
     }
+    flavorDimensions "default"
+
+    productFlavors {
+        dev {
+            dimension "default"
+            buildConfigField 'String', 'CHAT_API_KEY', '"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"'
+            buildConfigField 'String', 'OAUTH_CLIENT_ID', '"453045987930-ci205apban1bmkuvubuk9e9tt32ctr6r.apps.googleusercontent.com"'
+            buildConfigField 'String', 'OAUTH_CLIENT_SECRET', '"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"'
+        }
+        prod {
+            dimension "default"
+            buildConfigField 'String', 'CHAT_API_KEY', '"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"'
+            buildConfigField 'String', 'OAUTH_CLIENT_ID', '"453045987930-ci205apban1bmkuvubuk9e9tt32ctr6r.apps.googleusercontent.com"'
+            buildConfigField 'String', 'OAUTH_CLIENT_SECRET', '"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"'
+        }
+    }
 
     defaultConfig {
         applicationId "com.example.audiorecordsample"

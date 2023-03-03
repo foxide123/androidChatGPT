@@ -24,8 +24,8 @@ public class Test{
         return new GoogleAuthorizationCodeFlow.Builder(
                 new NetHttpTransport(),
                 GsonFactory.getDefaultInstance(),
-                Constants.OAUTH_CLIENT_ID,
-                Constants.OAUTH_CLIENT_SECRET,
+                BuildConfig.OAUTH_CLIENT_ID,
+                BuildConfig.OAUTH_CLIENT_SECRET,
                 scopes).setDataStoreFactory(
                 MemoryDataStoreFactory.getDefaultInstance()).build();
     }
