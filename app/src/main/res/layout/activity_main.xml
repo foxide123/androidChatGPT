@@ -6,26 +6,46 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
+    <EditText
+        android:id="@+id/textView"
+        android:layout_width="350dp"
+        android:layout_height="100dp"
+        android:text="TextView"
+        app:layout_constraintBottom_toTopOf="@+id/record_audiorecord"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="MissingConstraints"
+        tools:layout_editor_absoluteX="30dp" />
 
     <Button
         android:id="@+id/record_audiorecord"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Record"
-        app:layout_constraintBottom_toTopOf="@+id/send_audiotrack"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:ignore="MissingConstraints" />
+        app:layout_constraintBottom_toTopOf="@+id/authenticate"
+        app:layout_constraintTop_toBottomOf="@+id/textView"
+        tools:ignore="MissingConstraints"
+        tools:layout_editor_absoluteX="159dp" />
+
+    <Button
+        android:id="@+id/authenticate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Authenticate"
+        tools:ignore="MissingConstraints"
+        app:layout_constraintBottom_toTopOf="@+id/play_audiotrack"
+        app:layout_constraintTop_toBottomOf="@+id/record_audiorecord"
+        tools:layout_editor_absoluteX="131dp"
+        tools:layout_editor_absoluteY="416dp" />
 
     <Button
         android:id="@+id/play_audiotrack"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Play"
-        app:layout_constraintBottom_toTopOf="@+id/authenticate"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/record_audiorecord"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/send_audiotrack"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/authenticate"
         tools:ignore="MissingConstraints" />
 
     <Button
@@ -34,18 +54,10 @@
         android:layout_height="wrap_content"
         android:text="Send"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/play_audiotrack"
-        app:layout_constraintVertical_bias="0.462"
-        tools:ignore="MissingConstraints"
-        tools:layout_editor_absoluteX="44dp" />
-
-    <Button
-        android:id="@+id/authenticate"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Authenticate"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/play_audiotrack"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/send_audiotrack"
+        app:layout_constraintTop_toBottomOf="@+id/authenticate"
         tools:ignore="MissingConstraints" />
+
+
 </androidx.constraintlayout.widget.ConstraintLayout>

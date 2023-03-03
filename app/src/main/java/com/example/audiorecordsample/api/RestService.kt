@@ -1,10 +1,8 @@
 package com.example.audiorecordsample.api
 
 import android.util.Log
-import android.widget.Toast
-import com.example.audiorecordsample.MainActivity
-import com.example.audiorecordsample.models.SpeechToTextRequest
-import com.example.audiorecordsample.models.SpeechToTextResponse
+import com.example.audiorecordsample.models.speechToText.SpeechToTextRequest
+import com.example.audiorecordsample.models.speechToText.SpeechToTextResponse
 import com.example.audiorecordsample.util.ServiceBuilder
 import retrofit2.Call
 import retrofit2.Callback
@@ -19,7 +17,7 @@ class RestService {
                     onResult(null)
                     Log.e("API Error", "Failed to send audio: ${t.message}")
                 }
-                override fun onResponse( call: Call<SpeechToTextResponse>, response: Response<SpeechToTextResponse>) {
+                override fun onResponse(call: Call<SpeechToTextResponse>, response: Response<SpeechToTextResponse>) {
                     if (response.isSuccessful) {
                         val addedUser = response.body()
                         onResult(addedUser)

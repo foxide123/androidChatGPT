@@ -1,6 +1,7 @@
 package com.example.audiorecordsample
 
 import android.Manifest
+import android.app.Application
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.*
@@ -10,21 +11,34 @@ import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.service.controls.ControlsProviderService
 import android.service.controls.ControlsProviderService.TAG
+import android.speech.tts.TextToSpeech
+import android.text.Editable
 import android.text.TextUtils
+import android.text.TextWatcher
 import android.util.Log
 import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.example.audiorecordsample.api.TestCall
 import com.example.audiorecordsample.util.Constants
+import com.example.audiorecordsample.util.Constants.Companion.AUDIO_FORMAT
+import com.example.audiorecordsample.util.Constants.Companion.CHANNEL_CONFIG_IN
+import com.example.audiorecordsample.util.Constants.Companion.SAMPLE_RATE
 import com.google.android.material.snackbar.Snackbar
 import com.google.api.client.auth.oauth2.AuthorizationCodeFlow
 import com.google.api.client.auth.oauth2.TokenResponse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import net.openid.appauth.*
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -33,11 +47,9 @@ import java.io.*
 import java.util.*
 
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
-    var SAMPLE_RATE = 44100 // supported on all devices
-    val CHANNEL_CONFIG_IN = AudioFormat.CHANNEL_IN_MONO
-    val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT // not supported on all devices
+
     val BUFFER_SIZE_RECORDING =
         AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG_IN, AUDIO_FORMAT)
 
@@ -48,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     var playAudioTrack: Button? = null
     var sendAudioRecord: Button? = null
     private lateinit var authenticateButton: Button;
+    var textView: TextView? = null
 
     var isRecordingAudio = false
 
@@ -57,10 +70,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var fileAudio: File
 
-    private val RC_AUTH = 100
 
-    private var mAuthService: AuthorizationService? = null
-    private var mStateManager: AuthStateManager? = null
+    private val viewModel: MainViewModel by viewModels()
+    private var tts: TextToSpeech? = null
 
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -68,24 +80,22 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+
+
         playAudioTrack = findViewById<Button>(R.id.play_audiotrack);
         recordAudioRecord = findViewById(R.id.record_audiorecord);
         sendAudioRecord = findViewById(R.id.send_audiotrack);
         authenticateButton = findViewById<Button>(R.id.authenticate);
-        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val fileName = "testfile.wav"
-        //fileNameAudio = "$downloadsDir/$fileName"
-      //  fileNameAudio = filesDir.path + "/testfile" + ".wav"
+        textView = findViewById<EditText>(R.id.textView)
+        tts = TextToSpeech(this, this)
 
         fileNameAudio = "${externalCacheDir?.absolutePath}/audiorecordtest.wav"
-
-
-         fileAudio = File(fileNameAudio)
+        fileAudio = File(fileNameAudio)
         if (!fileAudio.exists()) { // create empty files if needed
             try {
                 fileAudio.createNewFile()
             } catch (e: IOException) {
-                Log.d(TAG, "could not create file " + e.toString())
+                Log.d(ControlsProviderService.TAG, "could not create file " + e.toString())
                 e.printStackTrace()
             }
         }
@@ -100,126 +110,41 @@ class MainActivity : AppCompatActivity() {
 
         setListeners()
 
-        mStateManager = AuthStateManager.getInstance(this)
-        mAuthService = AuthorizationService(this)
 
-        if (mStateManager?.current?.isAuthorized!!) {
-            Log.d("Auth", "Done")
-            authenticateButton.setText("Logout")
-            mStateManager?.current?.performActionWithFreshTokens(
-                mAuthService!!
-            ) { accessToken, idToken, exception ->
-                ProfileTask().execute(accessToken)
-            }
+    }
 
-        }
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            val result = tts!!.setLanguage(Locale.US)
 
-        authenticateButton.setOnClickListener {
-            if (mStateManager?.current?.isAuthorized!!) {
-
-            } else {
-                val serviceConfig = AuthorizationServiceConfiguration(
-                    Uri.parse("https://accounts.google.com/o/oauth2/v2/auth"), // authorization endpoint
-                    Uri.parse("https://www.googleapis.com/oauth2/v4/token") // token endpoint
-                )
-
-                val clientId =
-                    "453045987930-ci205apban1bmkuvubuk9e9tt32ctr6r.apps.googleusercontent.com"
-                val redirectUri = Uri.parse("com.example.audiorecordsample:/oauth2callback")
-                val builder = AuthorizationRequest.Builder(
-                    serviceConfig,
-                    clientId,
-                    ResponseTypeValues.CODE,
-                    redirectUri
-                )
-                builder.setScopes("profile")
-
-                val authRequest = builder.build()
-
-
-                /*  val intentBuilder = mAuthService?.createCustomTabsIntentBuilder(authRequest.toUri())
-                intentBuilder?.setToolbarColor(ContextCompat.getColor(this, R.color.colorAccent))
-                customIntent = intentBuilder?.build()*/
-
-                val authService = AuthorizationService(this)
-                val authIntent = authService.getAuthorizationRequestIntent(authRequest)
-                startActivityForResult(authIntent, RC_AUTH)
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Log.e("TTS","The Language not supported!")
             }
         }
+    }
+
+    private fun speakOut() {
+        val text = textView!!.text.toString()
+        tts!!.speak(text, TextToSpeech.QUEUE_FLUSH, null,"")
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == RC_AUTH) {
-            val resp = AuthorizationResponse.fromIntent(data!!)
-            val ex = AuthorizationException.fromIntent(data)
-
-            if (resp != null) {
-                mAuthService = AuthorizationService(this)
-                mStateManager?.updateAfterAuthorization(resp, ex)
-
-                mAuthService?.performTokenRequest(
-                    resp.createTokenExchangeRequest()
-                ) { resp, ex ->
-                    if (resp != null) {
-
-                        mStateManager?.updateAfterTokenResponse(resp, ex)
-                        authenticateButton.setText("Logout")
-                        Log.d("accessToken", resp.accessToken!!)
-                        ProfileTask().execute(resp.accessToken)
-                    } else {
-                        // authorization failed, check ex for more details
-                    }
-                }
-
-                //Log.d("res",resp.accessToken)
-                // authorization completed
-            } else {
-                // authorization failed, check ex for more details
-            }
-            // ... process the response or exception ...
-        } else {
-            // ...
-        }
-        if (mStateManager?.current?.isAuthorized!!) {
-            Log.d("Auth", "Done")
-            authenticateButton.text = "Logout"
-            mStateManager?.current?.performActionWithFreshTokens(
-                mAuthService!!
-            ) { accessToken, idToken, exception ->
-                ProfileTask().execute(accessToken)
-            }
-
+        val accessToken = viewModel.onResult(requestCode, resultCode, data)
+        lifecycleScope.launch(Dispatchers.IO) {
+            viewModel.doInBackground(accessToken!!)
         }
     }
 
-    inner class ProfileTask : AsyncTask<String?, Void, JSONObject>() {
-        override fun doInBackground(vararg tokens: String?): JSONObject? {
-            val client = OkHttpClient()
-            val request = Request.Builder()
-                .url("https://www.googleapis.com/oauth2/v3/userinfo")
-                .addHeader("Authorization", String.format("Bearer %s", tokens[0]))
-                .build()
-            try {
-                val response = client.newCall(request).execute()
-                val jsonBody: String = response.body.string()
-                Log.i("LOG_TAG", String.format("User Info Response %s", jsonBody))
-                return JSONObject(jsonBody)
-            } catch (exception: Exception) {
-                Log.w("LOG_TAG", exception)
-            }
-            return null
-        }
-        override fun onPostExecute(userInfo: JSONObject?) {
-            if (userInfo != null) {
-                Log.d(TAG, userInfo.toString())
-            }
-        }
-    }
 
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun setListeners() {
+        viewModel.jsonBody.observe(this) { newName ->
+            // Update the UI, in this case, a TextView.
+            textView?.text = newName
+        }
+
         recordAudioRecord!!.setOnClickListener {
             if (!isRecordingAudio) {
                 startRecording()
@@ -230,10 +155,19 @@ class MainActivity : AppCompatActivity() {
 
         sendAudioRecord!!.setOnClickListener{
             try{
-                val bytes = fileAudio.readBytes()
-                TestCall.Companion.sendAudio(Base64.getEncoder().encodeToString(bytes));
+                lifecycleScope.launch(Dispatchers.IO) {
+                    viewModel.sendChatRequest(textView?.text.toString())
+                }
             }catch(exception: IOException){
                 Log.d(TAG, "problem sending request")
+            }
+        }
+        authenticateButton.setOnClickListener {
+            val authRequest = viewModel.authenticationSetup()
+            val authService = AuthorizationService(this)
+            if(authRequest != null){
+                val authIntent = authService.getAuthorizationRequestIntent(authRequest)
+                startActivityForResult(authIntent, Constants.RC_AUTH)
             }
         }
 
@@ -309,6 +243,7 @@ class MainActivity : AppCompatActivity() {
         }
         try { // clean up file writing operations
             Log.d("Base64 byte array", Base64.getEncoder().encodeToString(data))
+
             outputStream.flush()
             outputStream.close()
         } catch (e: IOException) {
@@ -320,16 +255,16 @@ class MainActivity : AppCompatActivity() {
         audioRecord = null
         recordingThread = null
 
-/*
-        val file = File(fileNameAudio)
+
+
         val bytes = fileAudio.readBytes()
         val base64String = Base64.getEncoder().encodeToString(bytes)
         Log.d("base64String", base64String)
         println("base64 println"+base64String)
+        viewModel.fileInBase64 = base64String
 
         Log.d("Path", fileAudio.absolutePath)
 
- */
     }
 
 
@@ -343,6 +278,15 @@ class MainActivity : AppCompatActivity() {
     }
 
 
+    public override fun onDestroy() {
+        // Shutdown TTS when
+        // activity is destroyed
+        if (tts != null) {
+            tts!!.stop()
+            tts!!.shutdown()
+        }
+        super.onDestroy()
+    }
 
 
 

@@ -1,9 +1,8 @@
 package com.example.audiorecordsample.api
 
-import com.example.audiorecordsample.models.SpeechToTextRequest
-import com.example.audiorecordsample.models.SpeechToTextResponse
+import com.example.audiorecordsample.models.speechToText.SpeechToTextRequest
+import com.example.audiorecordsample.models.speechToText.SpeechToTextResponse
 import retrofit2.Call
-import retrofit2.Response
 import retrofit2.http.*
 
 interface ChatAPI {

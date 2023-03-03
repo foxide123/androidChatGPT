@@ -1,4 +1,4 @@
-package com.example.audiorecordsample.models
+package com.example.audiorecordsample.models.speechToText
 
 data class Result(
     val alternatives: List<Alternative>,

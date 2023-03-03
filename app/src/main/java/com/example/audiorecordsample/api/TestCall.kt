@@ -1,10 +1,9 @@
 package com.example.audiorecordsample.api
 
-import android.content.ContentValues.TAG
 import android.util.Log
-import com.example.audiorecordsample.models.AudioAPI
-import com.example.audiorecordsample.models.ConfigAPI
-import com.example.audiorecordsample.models.SpeechToTextRequest
+import com.example.audiorecordsample.models.speechToText.AudioAPI
+import com.example.audiorecordsample.models.speechToText.ConfigAPI
+import com.example.audiorecordsample.models.speechToText.SpeechToTextRequest
 
 class TestCall {
     companion object{
@@ -17,7 +16,7 @@ class TestCall {
             )
 
             apiService.sendAudio(speechToTextRequest) {response->
-                if (response != null && response.requestId != 0L) {
+                if (response != null && response.requestId == null) {
                     // it = newly added user parsed as response
                     // it?.id = newly added user ID
                     Log.d("RESULT!!!!!!!!!!!!!!!!!!", response.results[0].alternatives[0].toString())
